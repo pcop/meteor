@@ -472,3 +472,75 @@ ConstraintSolver.Constraint.prototype.getSatisfyingUnitVersion =
   return unitVersion;
 };
 
+
+////////////////////////////////////////////////////////////////////////////////
+// ConstraintsList
+////////////////////////////////////////////////////////////////////////////////
+// A persistent data-structure that keeps references to Constraint objects
+// arranged by the "name" field of Constraint, exact field and version.
+var mori = Npm.require('mori');
+ConstraintSolver.ConstraintsList = function (prev) {
+  var self = this;
+
+  if (prev) {
+    self.byName = prev.byName;
+    self.length = prev.length;
+  } else {
+    self.byName = mori.hash_map();
+    self.length = 0;
+  }
+};
+
+ConstraintSolver.ConstraintsList.prototype.contains = function (c) {
+  var self = this;
+  if (! mori.has_key(self.byName, c.name))
+    return false;
+
+  var bn = mori.get(self.byName, c.name);
+  var constraints = mori.get(bn, c.exact ? "exact" : "inexact");
+  return mori.has_key(constraints, c.version);
+};
+
+// returns a new version containing passed constraint
+ConstraintSolver.ConstraintsList.prototype.push = function (c) {
+  var self = this;
+
+  if (self.contains(c)) {
+    return self;
+  }
+
+  var newList = new ConstraintSolver.ConstraintsList(self);
+
+  // create a record or update the lookup table
+  if (! mori.has_key(self.byName, c.name)) {
+    var exactMap = mori.hash_map();
+    var inexactMap = mori.hash_map();
+
+    if (c.exact) {
+      exactMap = mori.assoc(exactMap, c.version, c);
+    } else {
+      inexactMap = mori.assoc(inexactMap, c.version, c);
+    }
+
+    var bn = mori.hash_map("exact", exactMap, "inexact", inexactMap);
+    newList.byName = mori.assoc(newList.byName, c.name, bn);
+  } else {
+    var exactStr = c.exact ? "exact" : "inexact";
+
+    var bn = mori.get(newList.byName, c.name);
+    var constraints = mori.get(bn, exactStr);
+    constraints = mori.assoc(constraints, c.version, c);
+    bn = mori.assoc(bn, exactStr, constraints);
+    newList.byName = mori.assoc(newList.byName, c.name, bn);
+  }
+
+  newList.length++;
+
+  return newList;
+};
+
+ConstraintSolver.ConstraintsList.prototype.forPackage = function (name) {
+  var self = this;
+  return mori.get(self.byName, name);
+};
+

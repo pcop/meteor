@@ -5,7 +5,8 @@ Package.describe({
 });
 
 Npm.depends({
-  'semver': '2.2.1'
+  'semver': '2.2.1',
+  'mori': '0.2.6'
 });
 
 Package.on_use(function (api) {
