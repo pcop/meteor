@@ -77,41 +77,18 @@ ConstraintSolver.Resolver.prototype.resolve =
 
   var rootDependencies = _.clone(dependencies);
 
-  var exactDepsConstraints = _.filter(constraints, function (c) {
-    return c.exact && _.contains(dependencies, c.name);
-  });
+  // create a fake unit version to represnt the app or the build target
+  var appUV = new ConstraintSolver.UnitVersion("target", "1.0.0", "0.0.0");
+  appUV.dependencies = dependencies;
+  appUV.constraints = constraints;
 
-  var exactDepsVersions = _.map(exactDepsConstraints, function (c) {
-    return c.getSatisfyingUnitVersion(self);
-  });
-
-  var exactDepsNames = _.pluck(exactDepsVersions, "name");
-
-  // Remove them from dependencies.
-  dependencies = _.difference(dependencies, exactDepsNames);
-
-  // Take exact dependencies and propagate them.
-  // Will also pick these versions into choices as we have no choice but take
-  // them.
-  _.each(exactDepsVersions, function (uv) {
-    var propagatedExactTransDeps =
-      self._propagateExactTransDeps(uv, dependencies, constraints, choices);
-    dependencies = propagatedExactTransDeps.dependencies;
-    constraints = propagatedExactTransDeps.constraints;
-    choices = propagatedExactTransDeps.choices;
-  });
+  var startState = self._propagateExactTransDeps(appUV, dependencies, constraints, []);
+  startState.choices = _.filter(startState.choices, function (uv) { return uv.name !== "target"; });
 
   if (options.stopAfterFirstPropagation)
-    return choices;
+    return startState.choices;
 
   var pq = new PriorityQueue();
-
-  var startState = {
-    dependencies: dependencies,
-    constraints: constraints,
-    choices: choices
-  };
-
   var opts = { rootDependencies: rootDependencies };
   var costFunction = options.costFunction;
   var estimateCostFunction = options.estimateCostFunction;
@@ -388,7 +365,7 @@ _.extend(ConstraintSolver.UnitVersion.prototype, {
       // TODO: error handling in case a satisfying dependency wasn't found
       // xcxc
       if (!unitVersion)
-        console.log("FAIL: ", c);
+        throw new Error("No unit version was found for the constraint -- " + c.toString());
 
       // Collect the transitive dependencies of the direct exact dependencies.
       exactTransitiveConstraints = _.union(exactTransitiveConstraints,
