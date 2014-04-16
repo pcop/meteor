@@ -82,7 +82,7 @@ ConstraintSolver.Resolver.prototype.resolve =
   appUV.dependencies = dependencies;
   appUV.constraints = constraints;
 
-  var startState = self._propagateExactTransDeps(appUV, dependencies, constraints, []);
+  var startState = self._propagateExactTransDeps(appUV, dependencies, constraints, choices);
   startState.choices = _.filter(startState.choices, function (uv) { return uv.name !== "target"; });
 
   if (options.stopAfterFirstPropagation)
