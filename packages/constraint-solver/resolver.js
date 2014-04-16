@@ -362,8 +362,6 @@ _.extend(ConstraintSolver.UnitVersion.prototype, {
 
     _.each(exactDeps, function (c) {
       var unitVersion = c.getSatisfyingUnitVersion(resolver);
-      // TODO: error handling in case a satisfying dependency wasn't found
-      // xcxc
       if (!unitVersion)
         throw new Error("No unit version was found for the constraint -- " + c.toString());
 
@@ -521,6 +519,15 @@ ConstraintSolver.ConstraintsList.prototype.forPackage = function (name) {
   return mori.get(self.byName, name);
 };
 
+ConstraintSolver.ConstraintsList.fromArray = function (arr) {
+  var list = new ConstraintSolver.ConstraintsList();
+  _.each(arr, function (c) {
+    list = list.push(c);
+  });
+
+  return list;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 // DependenciesList
 ////////////////////////////////////////////////////////////////////////////////
@@ -567,5 +574,17 @@ ConstraintSolver.DependenciesList.prototype.peek = function () {
   return mori.peek(mori.last(self.map));
 };
 
+ConstraintSolver.DependenciesList.fromArray = function (arr) {
+  var list = new ConstraintSolver.DependenciesList();
+  var args = [];
+  _.each(arr, function (d) {
+    args.push(d);
+    args.push(d);
+  });
+
+  list.map = mori.hash_map.apply(mori, args);
+
+  return list;
+};
 
 
