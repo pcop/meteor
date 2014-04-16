@@ -521,3 +521,51 @@ ConstraintSolver.ConstraintsList.prototype.forPackage = function (name) {
   return mori.get(self.byName, name);
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// DependenciesList
+////////////////////////////////////////////////////////////////////////////////
+// A persistent data-structure that wrapps persistent dictionary
+
+ConstraintSolver.DependenciesList = function (prev) {
+  var self = this;
+
+  if (prev) {
+    self.map = prev.byName;
+  } else {
+    self.map = mori.hash_map();
+  }
+};
+
+ConstraintSolver.DependenciesList.prototype.contains = function (d) {
+  var self = this;
+  return mori.has_key(self.map, d);
+};
+
+// returns a new version containing passed dependency
+ConstraintSolver.DependenciesList.prototype.push = function (d) {
+  var self = this;
+
+  if (self.contains(d)) {
+    return self;
+  }
+
+  var newList = new ConstraintSolver.DependenciesList(self);
+  newList.map = mori.assoc(self.map, d, d);
+  return newList;
+};
+
+ConstraintSolver.DependenciesList.prototype.remove = function (d) {
+  var self = this;
+  var newList = new ConstraintSolver.DependenciesList(self);
+  newList.map = mori.dissoc(self.map, d);
+
+  return newList;
+};
+
+ConstraintSolver.DependenciesList.prototype.peek = function () {
+  var self = this;
+  return mori.peek(mori.last(self.map));
+};
+
+
+
