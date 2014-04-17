@@ -82,6 +82,10 @@ ConstraintSolver.Resolver.prototype.resolve =
   appUV.dependencies = dependencies;
   appUV.constraints = constraints;
 
+  // state is an object:
+  // - dependencies: DependenciesList
+  // - constraints: ConstraintsList
+  // - choices: array of UnitVersion
   var startState = self._propagateExactTransDeps(appUV, dependencies, constraints, choices);
   startState.choices = _.filter(startState.choices, function (uv) { return uv.name !== "target"; });
 
@@ -106,7 +110,7 @@ ConstraintSolver.Resolver.prototype.resolve =
     if (tentativeCost === Infinity)
       break;
 
-    if (_.isEmpty(currentState.dependencies)) {
+    if (currentState.dependencies.isEmpty()) {
       solution = currentState.choices;
       break;
     }
@@ -136,14 +140,15 @@ ConstraintSolver.Resolver.prototype.resolve =
   throw new Error("Couldn't resolve, I am sorry");
 };
 
-// dependencies: [String] - remaining dependencies
-// constraints: [ConstraintSolver.Constraint] - constraints to satisfy
-// choices: [ConstraintSolver.UnitVersion] - current fixed set of choices
+// state is an object:
+// - dependencies: DependenciesList - remaining dependencies
+// - constraints: ConstraintsList - constraints to satisfy
+// - choices: array of UnitVersion - current fixed set of choices
 //
 // returns {
 //   success: Boolean,
 //   failureMsg: String,
-//   choices: [ConstraintSolver.UnitVersion]
+//   neighbors: [state]
 // }
 //
 // NOTE: assumes that exact dependencies are already propagated
@@ -155,15 +160,12 @@ ConstraintSolver.Resolver.prototype._stateNeighbors =
   var constraints = state.constraints;
   var choices = state.choices;
 
-  var candidateName = dependencies[0];
-  dependencies = dependencies.slice(1);
+  var candidateName = dependencies.peek();
+  dependencies = dependencies.remove(candidateName);
 
-  var candidateConstraints = _.filter(constraints, function (c) {
-    return c.name === candidateName;
-  });
   var candidateVersions =
     _.filter(self.unitsVersions[candidateName], function (uv) {
-      return !candidateConstraints.violated(uv);
+      return !constraints.violated(uv);
     });
 
   if (_.isEmpty(candidateVersions))
@@ -174,23 +176,10 @@ ConstraintSolver.Resolver.prototype._stateNeighbors =
   var lastInvalidNeighbor = null;
 
   var neighbors = _.chain(candidateVersions).map(function (uv) {
-    var nDependencies = _.clone(dependencies);
-    var nConstraints = _.clone(constraints);
     var nChoices = _.clone(choices);
-
     nChoices.push(uv);
-    var propagatedExactTransDeps =
-      self._propagateExactTransDeps(uv, nDependencies, nConstraints, nChoices);
 
-    nDependencies = propagatedExactTransDeps.dependencies;
-    nConstraints = propagatedExactTransDeps.constraints;
-    nChoices = propagatedExactTransDeps.choices;
-
-    return {
-      dependencies: nDependencies,
-      constraints: nConstraints,
-      choices: nChoices
-    };
+    return self._propagateExactTransDeps(uv, dependencies, constraints, nChoices);
   }).filter(function (state) {
     var isValid =
       choicesDontViolateConstraints(state.choices, state.constraints);
@@ -639,6 +628,11 @@ ConstraintSolver.DependenciesList.prototype.union = function (anotherList) {
   newList._mapping = mori.union(newList._mapping, anotherList._mapping);
 
   return newList;
+};
+
+ConstraintSolver.DependenciesList.prototype.isEmpty = function () {
+  var self = this;
+  return mori.is_empty(self._mapping);
 };
 
 ConstraintSolver.DependenciesList.fromArray = function (arr) {
