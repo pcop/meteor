@@ -79,8 +79,8 @@ ConstraintSolver.Resolver.prototype.resolve =
 
   // create a fake unit version to represnt the app or the build target
   var appUV = new ConstraintSolver.UnitVersion("target", "1.0.0", "0.0.0");
-  appUV.dependencies = dependencies;
-  appUV.constraints = constraints;
+  appUV.dependencies = ConstraintSolver.DependenciesList.fromArray(dependencies);
+  appUV.constraints = ConstraintSolver.ConstraintsList.fromArray(constraints);
 
   var startState = self._propagateExactTransDeps(appUV, dependencies, constraints, choices);
   startState.choices = _.filter(startState.choices, function (uv) { return uv.name !== "target"; });
@@ -337,36 +337,22 @@ _.extend(ConstraintSolver.UnitVersion.prototype, {
 
     self.constraints.push(constraint);
   },
-  exactConstraints: function () {
-    var self = this;
-    return _.filter(self.constraints, function (c) { return c.exact; });
-  },
-  looseConstraints: function () {
-    var self = this;
-    return _.filter(self.constraints, function (c) { return !c.exact; });
-  },
 
   // Returns a list of transitive exact constraints, those could be found as
   // transitive dependencies.
   _exactTransitiveConstraints: function (resolver) {
     var self = this;
 
-    // Get all dependencies we depend on and have constraints to pick an exact
-    // version simultaneously as constraints.
-    var exactDeps = _.filter(self.exactConstraints(), function (c) {
-      return _.contains(self.dependencies, c.name);
-    });
+    var exactTransitiveConstraints =
+      self.dependencies.exactConstraintsIntersection(self.constraints);
 
-    // Merge all their's transitive exact dependencies
-    var exactTransitiveConstraints = _.clone(exactDeps);
-
-    _.each(exactDeps, function (c) {
+    exactTransitiveConstraints.each(function (c) {
       var unitVersion = c.getSatisfyingUnitVersion(resolver);
       if (!unitVersion)
         throw new Error("No unit version was found for the constraint -- " + c.toString());
 
       // Collect the transitive dependencies of the direct exact dependencies.
-      exactTransitiveConstraints = _.union(exactTransitiveConstraints,
+      exactTransitiveConstraints = exactTransitiveConstraints.union(
                 unitVersion._exactTransitiveConstraints(resolver));
     });
 
@@ -519,6 +505,32 @@ ConstraintSolver.ConstraintsList.prototype.forPackage = function (name) {
   return mori.get(self.byName, name);
 };
 
+// doesn't break on the false return value
+ConstraintSolver.ConstraintsList.prototype.each = function (iter) {
+  var self = this;
+  mori.each(self.byName, function (coll) {
+    mori.each(coll, function (exactInexactColl) {
+      mori.each(exactInexactColl);
+    });
+  });
+};
+
+ConstraintSolver.ConstraintsList.prototype.union = function (anotherList) {
+  var self = this;
+  var newList = new ConstraintSolver.ConstraintsList(self);
+  mori.each(newList.byName, function (coll) {
+    var anotherForName = mori.get(anotherList.byName, mori.first(coll));
+
+    _.each(["exact", "inexact"], function (exact) {
+      newList.byName = mori.assoc(newList.byName, "exact",
+        mori.union(mori.get(mori.last(coll), "exact"),
+                   mori.get(anotherForName, "exact")));
+    });
+  });
+
+  return newList;
+};
+
 ConstraintSolver.ConstraintsList.fromArray = function (arr) {
   var list = new ConstraintSolver.ConstraintsList();
   _.each(arr, function (c) {
@@ -572,6 +584,25 @@ ConstraintSolver.DependenciesList.prototype.remove = function (d) {
 ConstraintSolver.DependenciesList.prototype.peek = function () {
   var self = this;
   return mori.peek(mori.last(self.map));
+};
+
+// a weird method that returns a list of exact constraints those correspond to
+// the dependencies in this list
+ConstraintSolver.DependenciesList.prototype.exactConstraintsIntersection =
+  function (constraintsList) {
+  var self = this;
+  var exactConstraints = new ConstraintSolver.ConstraintsList();
+
+  mori.each(self.map, function (d) {
+    var c = mori.last(
+      // pick an exact constraint for this dependency if such exists
+      mori.last(mori.get(mori.get(constraintsList.byName, d), "exact")));
+
+    if (c)
+      exactConstraints = exactConstraints.push(c);
+  });
+
+  return exactConstraints;
 };
 
 ConstraintSolver.DependenciesList.fromArray = function (arr) {
