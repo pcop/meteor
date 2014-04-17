@@ -163,7 +163,7 @@ ConstraintSolver.Resolver.prototype._stateNeighbors =
   });
   var candidateVersions =
     _.filter(self.unitsVersions[candidateName], function (uv) {
-      return unitVersionDoesntValidateConstraints(uv, candidateConstraints);
+      return !candidateConstraints.violated(uv);
     });
 
   if (_.isEmpty(candidateVersions))
@@ -193,7 +193,7 @@ ConstraintSolver.Resolver.prototype._stateNeighbors =
     };
   }).filter(function (state) {
     var isValid =
-      choicesDontValidateConstraints(state.choices, state.constraints);
+      choicesDontViolateConstraints(state.choices, state.constraints);
 
     if (! isValid)
       lastInvalidNeighbor = state;
@@ -288,17 +288,9 @@ ConstraintSolver.Resolver.prototype._propagateExactTransDeps =
   };
 };
 
-unitVersionDoesntValidateConstraints = function (uv, constraints) {
-  return _.all(constraints, function (c) {
-    return c.name !== uv.name || c.isSatisfied(uv);
-  });
-};
-
-var choicesDontValidateConstraints = function (choices, constraints) {
-  var constraintsByName = _.groupBy(constraints, 'name');
+var choicesDontViolateConstraints = function (choices, constraints) {
   return _.all(choices, function (uv) {
-    return unitVersionDoesntValidateConstraints(
-      uv, constraintsByName[uv.name] || []);
+    return !constraints.violated(uv);
   });
 };
 
@@ -552,6 +544,19 @@ ConstraintSolver.ConstraintsList.prototype.union = function (anotherList) {
   });
 
   return newList;
+};
+
+// Checks if the passed unit version violates any of the constraints
+ConstraintSolver.ConstraintsList.prototype.violated = function (uv) {
+  var self = this;
+  var forPackage = mori.get(self.byName, uv.name);
+  var exact = mori.get(forPackage, "exact");
+  var inexact = mori.get(forPackage, "inexact");
+
+  if (! mori.every(function (c) { return c.isSatisfied(uv); }, exact))
+    return true;
+
+  return ! mori.every(function (c) { return c.isSatisfied(uv); }, inexact);
 };
 
 ConstraintSolver.ConstraintsList.fromArray = function (arr) {
