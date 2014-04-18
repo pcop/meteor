@@ -257,7 +257,7 @@ ConstraintSolver.Resolver.prototype._propagateExactTransDeps =
     var exactDeps = [];
 
     newExactConstraintsList.each(function (c) {
-      var uv = c.getSatisfyingUnitVersion();
+      var uv = c.getSatisfyingUnitVersion(self);
       if (! uv)
         throw new Error("No unit version was found for the constraint -- " + c.toString());
       exactDeps.push(uv);
@@ -312,7 +312,7 @@ _.extend(ConstraintSolver.UnitVersion.prototype, {
     check(name, String);
     if (self.dependencies.contains(name))
       throw new Error("Dependency already exists -- " + name);
-    self.dependencie = self.dependencies.push(name);
+    self.dependencies = self.dependencies.push(name);
   },
   addConstraint: function (constraint) {
     var self = this;
@@ -321,7 +321,7 @@ _.extend(ConstraintSolver.UnitVersion.prototype, {
     if (self.constraints.contains(constraint))
       throw new Error("Constraint already exists -- " + constraint.toString());
 
-    self.constraint = self.constraints.push(constraint);
+    self.constraints = self.constraints.push(constraint);
   },
 
   // Returns a list of transitive exact constraints, those could be found as
@@ -513,8 +513,8 @@ ConstraintSolver.ConstraintsList.prototype.forPackage = function (name) {
 ConstraintSolver.ConstraintsList.prototype.each = function (iter) {
   var self = this;
   mori.each(self.byName, function (coll) {
-    mori.each(coll, function (exactInexactColl) {
-      mori.each(exactInexactColl, function (c) {
+    mori.each(mori.last(coll), function (exactInexactColl) {
+      mori.each(mori.last(exactInexactColl), function (c) {
         iter(mori.last(c));
       });
     });
@@ -640,7 +640,7 @@ ConstraintSolver.DependenciesList.prototype.exactConstraintsIntersection =
   var self = this;
   var exactConstraints = new ConstraintSolver.ConstraintsList();
 
-  mori.each(self._mapping, function (d) {
+  self.each(function (d) {
     var c = mori.last(
       // pick an exact constraint for this dependency if such exists
       mori.last(mori.get(mori.get(constraintsList.byName, d), "exact")));
