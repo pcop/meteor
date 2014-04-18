@@ -200,7 +200,7 @@ ConstraintSolver.Resolver.prototype._stateNeighbors =
   return { success: true, neighbors: neighbors };
 };
 
-// Propagates exact dependencies (depencies which have exact constraints) from
+// Propagates exact dependencies (which have exact constraints) from
 // the given unit version taking into account the existing set of dependencies
 // and constraints.
 // Assumes that the unit versions graph without passed unit version is already
@@ -514,22 +514,33 @@ ConstraintSolver.ConstraintsList.prototype.each = function (iter) {
   var self = this;
   mori.each(self.byName, function (coll) {
     mori.each(coll, function (exactInexactColl) {
-      mori.each(exactInexactColl);
+      mori.each(exactInexactColl, iter);
     });
+  });
+};
+
+// doesn't break on the false return value
+ConstraintSolver.ConstraintsList.prototype.eachExact = function (iter) {
+  var self = this;
+  mori.each(self.byName, function (coll) {
+    mori.each(mori.get(coll, "exact"), iter);
   });
 };
 
 ConstraintSolver.ConstraintsList.prototype.union = function (anotherList) {
   var self = this;
-  var newList = new ConstraintSolver.ConstraintsList(self);
-  mori.each(newList.byName, function (coll) {
-    var anotherForName = mori.get(anotherList.byName, mori.first(coll));
+  var newList, oldList;
 
-    _.each(["exact", "inexact"], function (exact) {
-      newList.byName = mori.assoc(newList.byName, "exact",
-        mori.union(mori.get(mori.last(coll), "exact"),
-                   mori.get(anotherForName, "exact")));
-    });
+  if (self.length <= anotherList.length) {
+    newList = anotherList;
+    oldList = self;
+  } else {
+    newList = self;
+    oldList = anotherList;
+  }
+
+  oldList.each(function (c) {
+    newList = newList.push(c);
   });
 
   return newList;
@@ -546,6 +557,21 @@ ConstraintSolver.ConstraintsList.prototype.violated = function (uv) {
     return true;
 
   return ! mori.every(function (c) { return c.isSatisfied(uv); }, inexact);
+};
+
+// a weird method that returns a list of exact constraints those correspond to
+// the dependencies in the passed list
+ConstraintSolver.ConstraintsList.prototype.exactDependenciesIntersection =
+  function (deps) {
+  var self = this;
+  var newList = new ConstraintSolver.ConstraintsList();
+
+  self.eachExact(function (c) {
+    if (deps.contains(c.name))
+      newList = newList.push(c);
+  });
+
+  return newList;
 };
 
 ConstraintSolver.ConstraintsList.fromArray = function (arr) {
