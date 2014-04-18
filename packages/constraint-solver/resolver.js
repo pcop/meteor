@@ -299,10 +299,8 @@ ConstraintSolver.UnitVersion = function (name, unitVersion, ecv) {
 
   self.name = name;
   self.version = unitVersion;
-  // array of Strings - names of dependencies
-  self.dependencies = [];
-  // array of ConstraintSolver.Constraint's
-  self.constraints = [];
+  self.dependencies = new ConstraintSolver.DependenciesList();
+  self.constraints = new ConstraintSolver.ConstraintsList();
   // a string in a form of "1.2.0"
   self.ecv = ecv;
 };
@@ -312,18 +310,18 @@ _.extend(ConstraintSolver.UnitVersion.prototype, {
     var self = this;
 
     check(name, String);
-    if (_.contains(self.dependencies, name))
+    if (self.dependencies.contains(name))
       throw new Error("Dependency already exists -- " + name);
-    self.dependencies.push(name);
+    self.dependencie = self.dependencies.push(name);
   },
   addConstraint: function (constraint) {
     var self = this;
 
     check(constraint, ConstraintSolver.Constraint);
-    if (_.contains(self.constraints, constraint))
+    if (self.constraints.contains(constraint))
       throw new Error("Constraint already exists -- " + constraint.toString());
 
-    self.constraints.push(constraint);
+    self.constraint = self.constraints.push(constraint);
   },
 
   // Returns a list of transitive exact constraints, those could be found as
@@ -516,7 +514,9 @@ ConstraintSolver.ConstraintsList.prototype.each = function (iter) {
   var self = this;
   mori.each(self.byName, function (coll) {
     mori.each(coll, function (exactInexactColl) {
-      mori.each(exactInexactColl, iter);
+      mori.each(exactInexactColl, function (c) {
+        iter(mori.last(c));
+      });
     });
   });
 };
@@ -525,7 +525,9 @@ ConstraintSolver.ConstraintsList.prototype.each = function (iter) {
 ConstraintSolver.ConstraintsList.prototype.eachExact = function (iter) {
   var self = this;
   mori.each(self.byName, function (coll) {
-    mori.each(mori.get(coll, "exact"), iter);
+    mori.each(mori.get(coll, "exact"), function (c) {
+      iter(mori.last(c));
+    });
   });
 };
 
@@ -661,6 +663,13 @@ ConstraintSolver.DependenciesList.prototype.union = function (anotherList) {
 ConstraintSolver.DependenciesList.prototype.isEmpty = function () {
   var self = this;
   return mori.is_empty(self._mapping);
+};
+
+ConstraintSolver.DependenciesList.prototype.each = function (iter) {
+  var self = this;
+  mori.each(self._mapping, function (d) {
+    iter(mori.last(d));
+  });
 };
 
 ConstraintSolver.DependenciesList.fromArray = function (arr) {
