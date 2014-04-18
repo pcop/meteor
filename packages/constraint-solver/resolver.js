@@ -250,16 +250,18 @@ ConstraintSolver.Resolver.prototype._propagateExactTransDeps =
     // We don't need to look for all previously considered combinations.
     // Looking for newNode.dependencies+exact constraints and
     // newNode.exactConstraints+dependencies is enough.
-    var exactDeps = _.chain(uv.dependencies).map(function (dep) {
-      return _.find(constraints, function (c) {
-        return c.name === uv.name && c.exact;
-      });
-    }).filter(_.identity).map(function (c) {
-      return c.getSatisfyingUnitVersion(self);
-    }).union(_.chain(uv.constraints).filter(function (c) { return c.exact; })
-              .map(function (c) { return c.getSatisfyingUnitVersion(self); })
-              .value()
-            ).difference(choices).value();
+    var newExactConstraintsList = uv.dependencies
+      .exactConstraintsIntersection(constraints)
+      .union(uv.constraints.exactDependenciesIntersection(uv.dependencies));
+
+    var exactDeps = [];
+
+    newExactConstraintsList.each(function (c) {
+      var uv = c.getSatisfyingUnitVersion();
+      if (! uv)
+        throw new Error("No unit version was found for the constraint -- " + c.toString());
+      exactDeps.push(uv);
+    });
 
     // Enqueue all new exact dependencies.
     _.each(exactDeps, function (dep) {
@@ -553,10 +555,10 @@ ConstraintSolver.ConstraintsList.prototype.violated = function (uv) {
   var exact = mori.get(forPackage, "exact");
   var inexact = mori.get(forPackage, "inexact");
 
-  if (! mori.every(function (c) { return c.isSatisfied(uv); }, exact))
+  if (! mori.every(function (c) { return mori.last(c).isSatisfied(uv); }, exact))
     return true;
 
-  return ! mori.every(function (c) { return c.isSatisfied(uv); }, inexact);
+  return ! mori.every(function (c) { return mori.last(c).isSatisfied(uv); }, inexact);
 };
 
 // a weird method that returns a list of exact constraints those correspond to
