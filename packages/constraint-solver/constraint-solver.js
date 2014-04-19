@@ -222,7 +222,7 @@ ConstraintSolver.PackagesResolver.prototype._getResolverOptions =
         if (!self.resolver.unitsVersions[dep])
           console.log("FAIL, no info about: ", dep) // xcxc
         var uv = _.find(_.clone(self.resolver.unitsVersions[dep]).reverse(),
-                        function (uv) { return state.constraints.violated(uv); });
+                        function (uv) { return !state.constraints.violated(uv); });
 
         if (! uv) {
           return Infinity;
