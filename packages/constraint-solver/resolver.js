@@ -34,8 +34,10 @@ ConstraintSolver.Resolver.prototype.addUnitVersion = function (unitVersion) {
     self._latestVersion[unitVersion.name] = unitVersion.version;
   }
 
-  self.unitsVersions[unitVersion.name].push(unitVersion);
-  self._unitsVersionsMap[unitVersion.toString()] = unitVersion;
+  if (! _.has(self._unitsVersionsMap, unitVersion.toString())) {
+    self.unitsVersions[unitVersion.name].push(unitVersion);
+    self._unitsVersionsMap[unitVersion.toString()] = unitVersion;
+  }
 
   if (semver.lt(self._latestVersion[unitVersion.name], unitVersion.version))
     self._latestVersion[unitVersion.name] = unitVersion.version;
@@ -578,6 +580,19 @@ ConstraintSolver.ConstraintsList.prototype.exactDependenciesIntersection =
   return newList;
 };
 
+ConstraintSolver.ConstraintsList.prototype.toString = function () {
+  var self = this;
+  var str = "";
+
+  self.each(function (c) {
+    if (str !== "")
+      str += ", ";
+    str += c.toString();
+  });
+  return "<constraints list: " + str + ">";
+};
+
+
 ConstraintSolver.ConstraintsList.fromArray = function (arr) {
   var list = new ConstraintSolver.ConstraintsList();
   _.each(arr, function (c) {
@@ -670,6 +685,18 @@ ConstraintSolver.DependenciesList.prototype.each = function (iter) {
   mori.each(self._mapping, function (d) {
     iter(mori.last(d));
   });
+};
+
+ConstraintSolver.DependenciesList.prototype.toString = function () {
+  var self = this;
+  var str = "";
+
+  self.each(function (d) {
+    if (str !== "")
+      str += ", ";
+    str += d;
+  });
+  return "<dependencies list: " + str + ">";
 };
 
 ConstraintSolver.DependenciesList.fromArray = function (arr) {
