@@ -140,6 +140,12 @@ ConstraintSolver.Resolver.prototype.resolve =
     throw new Error(someError);
 
   throw new Error("Couldn't resolve, I am sorry");
+
+
+  function stateStringify (state) {
+    function toString (x) { return x.toString(); }
+    return "deps: " + state.dependencies.toString(1) + " constraints: " + state.constraints.toString(1) + "choices: " + state.choices.map(toString).join(" ")
+  }
 };
 
 // state is an object:
@@ -580,16 +586,26 @@ ConstraintSolver.ConstraintsList.prototype.exactDependenciesIntersection =
   return newList;
 };
 
-ConstraintSolver.ConstraintsList.prototype.toString = function () {
+ConstraintSolver.ConstraintsList.prototype.toString = function (simple) {
   var self = this;
   var str = "";
 
+  var strs = [];
+
   self.each(function (c) {
-    if (str !== "")
-      str += ", ";
-    str += c.toString();
+    strs.push(c.toString());
   });
-  return "<constraints list: " + str + ">";
+
+  strs.sort();
+
+  _.each(strs, function (c) {
+    if (str !== "") {
+      str += simple ? " " : ", ";
+    }
+    str += c;
+  });
+
+  return simple ? str : "<constraints list: " + str + ">";
 };
 
 
@@ -687,16 +703,24 @@ ConstraintSolver.DependenciesList.prototype.each = function (iter) {
   });
 };
 
-ConstraintSolver.DependenciesList.prototype.toString = function () {
+ConstraintSolver.DependenciesList.prototype.toString = function (simple) {
   var self = this;
   var str = "";
 
+  var strs = [];
   self.each(function (d) {
-    if (str !== "")
-      str += ", ";
+    strs.push(d);
+  });
+
+  strs.sort();
+  _.each(strs, function (d) {
+    if (str !== "") {
+      str += simple ? " " : ", ";
+    }
     str += d;
   });
-  return "<dependencies list: " + str + ">";
+
+  return simple ? str : "<dependencies list: " + str + ">";
 };
 
 ConstraintSolver.DependenciesList.fromArray = function (arr) {
