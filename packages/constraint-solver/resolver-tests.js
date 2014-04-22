@@ -1,3 +1,4 @@
+return;
 Tinytest.add("constraint solver - resolver, get exact deps", function (test) {
   // Fat arrow - exact deps
   // Thin arrow - inexact dep or no constraint

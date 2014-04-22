@@ -1,4 +1,7 @@
 railsGems = [
+  {"name":"htmlentities","number":"4.0.0","platform":"ruby","dependencies":[]},
+  {"name":"hpricot","number":"0.10.0","platform":"ruby","dependencies":[]},
+  {"name":"hpricot","number":"1.10.0","platform":"ruby","dependencies":[]},
   {"name":"roauth","number":"0.5.0","platform":"ruby","dependencies":[]},
   {"name":"rack-accept","number":"1.5.0","platform":"ruby","dependencies":[]},
   {"name":"mini_portile","number":"0.5.0","platform":"ruby","dependencies":[]},

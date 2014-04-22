@@ -225,7 +225,8 @@ ConstraintSolver.PackagesResolver.prototype._getResolverOptions =
                         function (uv) { return !state.constraints.violated(uv); });
 
         if (! uv) {
-          return Infinity;
+          totalCost = Infinity;
+          return;
         }
 
         if (! _.contains(rootDeps, dep))

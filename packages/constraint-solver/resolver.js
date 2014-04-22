@@ -76,7 +76,7 @@ ConstraintSolver.Resolver.prototype.resolve =
 
   var rootDependencies = _.clone(dependencies);
 
-  dependencies = ConstraintSolver.DependenciesList.fromArray(dependencies);
+  dependencies = ConstraintSolver.DependenciesList.fromArray(dependencies, true);
   constraints = ConstraintSolver.ConstraintsList.fromArray(constraints);
 
   // create a fake unit version to represnt the app or the build target
@@ -109,6 +109,8 @@ ConstraintSolver.Resolver.prototype.resolve =
       costFunction(currentState.choices, opts) +
       estimateCostFunction(currentState, opts);
 
+    //console.log("new state:", stateStringify(currentState), "cost:", costFunction(currentState.choices, opts), "estimated cost:", estimateCostFunction(currentState, opts), "tentative cost:", tentativeCost);
+
     if (tentativeCost === Infinity)
       break;
 
@@ -128,6 +130,7 @@ ConstraintSolver.Resolver.prototype.resolve =
           estimateCostFunction(state, opts);
 
         pq.push(state, [tentativeCost, -state.choices.length]);
+        //console.log("valid neighbor:", stateStringify(state), "cost:", costFunction(state.choices, opts), "estimated cost:", estimateCostFunction(currentState, opts), "tentative cost:", tentativeCost);
       });
     }
   }
@@ -169,6 +172,7 @@ ConstraintSolver.Resolver.prototype._stateNeighbors =
   var choices = state.choices;
 
   var candidateName = dependencies.peek();
+  //console.log("candidate ", candidateName)
   dependencies = dependencies.remove(candidateName);
 
   var candidateVersions =
@@ -628,8 +632,10 @@ ConstraintSolver.DependenciesList = function (prev) {
 
   if (prev) {
     self._mapping = prev._mapping;
+    self._prioritized = prev._prioritized;
   } else {
     self._mapping = mori.hash_map();
+    self._prioritized = mori.list();
   }
 };
 
@@ -656,12 +662,20 @@ ConstraintSolver.DependenciesList.prototype.remove = function (d) {
   var newList = new ConstraintSolver.DependenciesList(self);
   newList._mapping = mori.dissoc(self._mapping, d);
 
+  if (mori.peek(newList._prioritized) === d)
+    newList._prioritized = mori.pop(newList._prioritized);
+
   return newList;
 };
 
 ConstraintSolver.DependenciesList.prototype.peek = function () {
   var self = this;
-  return mori.peek(mori.last(self._mapping));
+  var prioritized = mori.peek(self._prioritized);
+
+  if (prioritized)
+    return prioritized;
+
+  return mori.last(mori.first(self._mapping));
 };
 
 // a weird method that returns a list of exact constraints those correspond to
@@ -723,7 +737,7 @@ ConstraintSolver.DependenciesList.prototype.toString = function (simple) {
   return simple ? str : "<dependencies list: " + str + ">";
 };
 
-ConstraintSolver.DependenciesList.fromArray = function (arr) {
+ConstraintSolver.DependenciesList.fromArray = function (arr, prioritized) {
   var list = new ConstraintSolver.DependenciesList();
   var args = [];
   _.each(arr, function (d) {
@@ -732,6 +746,14 @@ ConstraintSolver.DependenciesList.fromArray = function (arr) {
   });
 
   list._mapping = mori.hash_map.apply(mori, args);
+
+  // the whole list should also be added as prioritized
+  if (prioritized) {
+    arr.sort();
+    _.each(arr, function (d) {
+      list._prioritized = mori.conj(list._prioritized, d);
+    });
+  }
 
   return list;
 };
